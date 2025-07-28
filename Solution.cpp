@@ -1,5 +1,10 @@
 #include <bits/stdc++.h>
 using namespace std;
+#include <vector>
+#include <cmath> // for pow()
+#include <gmpxx.h>
+using BigFloat = mpf_class;  // Arbitrary-precision floating point
+using BigInt = mpz_class;    // Arbitrary-precision integer
 
 struct Entry {
     string base;
@@ -135,6 +140,79 @@ int convertToDecimal(const string& valueStr, const string& baseStr) {
     }
 }
 
+
+
+// Creates Vandermonde matrix for polynomial fitting
+vector<vector<BigFloat>> createVandermonde(const vector<BigInt>& x, int degree) {
+    int n = x.size();
+    vector<vector<BigFloat>> matrix(n, vector<BigFloat>(degree + 1));
+    
+    for (int i = 0; i < n; ++i) {
+        BigFloat x_pow(1);  // x^0 = 1
+        for (int j = 0; j <= degree; ++j) {
+            matrix[i][j] = x_pow;
+            x_pow *= x[i];
+        }
+    }
+    return matrix;
+}
+
+vector<BigFloat> solveSystem(vector<vector<BigFloat>>& A, const vector<BigInt>& b) {
+    int n = A.size();
+    
+    // Augment the matrix
+    for (int i = 0; i < n; ++i) {
+        A[i].push_back(b[i]);
+    }
+
+    // Gaussian elimination with partial pivoting
+    for (int col = 0; col < n; ++col) {
+        // Partial pivoting
+        int max_row = col;
+        for (int row = col + 1; row < n; ++row) {
+            if (abs(A[row][col]) > abs(A[max_row][col])) {
+                max_row = row;
+            }
+        }
+        swap(A[col], A[max_row]);
+
+        // Elimination
+        for (int row = col + 1; row < n; ++row) {
+            BigFloat factor = A[row][col] / A[col][col];
+            for (int c = col; c <= n; ++c) {
+                A[row][c] -= factor * A[col][c];
+            }
+        }
+    }
+
+    // Back substitution
+    vector<BigFloat> solution(n);
+    for (int row = n - 1; row >= 0; --row) {
+        solution[row] = A[row][n];
+        for (int col = row + 1; col < n; ++col) {
+            solution[row] -= A[row][col] * solution[col];
+        }
+        solution[row] /= A[row][row];
+    }
+
+    return solution;
+}
+
+vector<double> findPolynomialCoefficients(const map<int, int>& xyMap, int degree) {
+    // Extract x and y values
+    vector<double> x, y;
+    for (const auto& [xi, yi] : xyMap) {
+        x.push_back(xi);
+        y.push_back(yi);
+    }
+
+    // Create Vandermonde matrix
+    auto V = createVandermonde(x, degree);
+    
+    // Solve the system V*a = y
+    return solveSystem(V, y);
+}
+
 int main() {
 
     // Checkpoint 1: Parsing the json 
@@ -175,5 +253,26 @@ int main() {
         cout << "  " << x << ": " << y << "\n";
     }
 
+
+
+        // Checkpoint 3: Find polynomial coefficients
+    try {
+        int polynomial_degree = data.k - 1;
+        if (xyMap.size() <= polynomial_degree) {
+            throw runtime_error("Not enough points for polynomial fitting");
+        }
+
+        auto coefficients = findPolynomialCoefficients(xyMap, polynomial_degree);
+        
+        cout << "\nPolynomial coefficients (highest degree first):\n";
+        for (size_t i = 0; i < coefficients.size(); ++i) {
+            cout << "  x^" << coefficients.size()-1-i << ": " << coefficients[i] << "\n";
+        }
+        
+        // The constant term is the last coefficient
+        cout << "\nConstant term: " << coefficients.back() << endl;
+    } catch (const exception& e) {
+        cerr << "Error in polynomial fitting: " << e.what() << endl;
+    }
     return 0;
 }
