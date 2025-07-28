@@ -2,9 +2,6 @@
 using namespace std;
 #include <vector>
 #include <cmath> // for pow()
-#include <gmpxx.h>
-using BigFloat = mpf_class;  // Arbitrary-precision floating point
-using BigInt = mpz_class;    // Arbitrary-precision integer
 
 struct Entry {
     string base;
@@ -143,21 +140,20 @@ int convertToDecimal(const string& valueStr, const string& baseStr) {
 
 
 // Creates Vandermonde matrix for polynomial fitting
-vector<vector<BigFloat>> createVandermonde(const vector<BigInt>& x, int degree) {
+vector<vector<double>> createVandermonde(const vector<double>& x, int degree) {
     int n = x.size();
-    vector<vector<BigFloat>> matrix(n, vector<BigFloat>(degree + 1));
+    vector<vector<double>> matrix(n, vector<double>(degree + 1));
     
     for (int i = 0; i < n; ++i) {
-        BigFloat x_pow(1);  // x^0 = 1
         for (int j = 0; j <= degree; ++j) {
-            matrix[i][j] = x_pow;
-            x_pow *= x[i];
+            matrix[i][j] = pow(x[i], j);
         }
     }
     return matrix;
 }
 
-vector<BigFloat> solveSystem(vector<vector<BigFloat>>& A, const vector<BigInt>& b) {
+// Performs Gaussian elimination to solve the system
+vector<double> solveSystem(vector<vector<double>>& A, const vector<double>& b) {
     int n = A.size();
     
     // Augment the matrix
@@ -178,7 +174,7 @@ vector<BigFloat> solveSystem(vector<vector<BigFloat>>& A, const vector<BigInt>& 
 
         // Elimination
         for (int row = col + 1; row < n; ++row) {
-            BigFloat factor = A[row][col] / A[col][col];
+            double factor = A[row][col] / A[col][col];
             for (int c = col; c <= n; ++c) {
                 A[row][c] -= factor * A[col][c];
             }
@@ -186,7 +182,7 @@ vector<BigFloat> solveSystem(vector<vector<BigFloat>>& A, const vector<BigInt>& 
     }
 
     // Back substitution
-    vector<BigFloat> solution(n);
+    vector<double> solution(n);
     for (int row = n - 1; row >= 0; --row) {
         solution[row] = A[row][n];
         for (int col = row + 1; col < n; ++col) {
